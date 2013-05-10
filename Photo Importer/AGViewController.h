@@ -13,12 +13,18 @@
     UILabel *pathLabel;
     UITextField *pathTextField;
     UIButton *importButton;
+    UIButton *importVideoButton;
     
     NSMutableArray *filePaths;
+    NSMutableArray *videoFilePaths;
     
     NSUInteger numberOfPhotos;
     NSUInteger numberOfPhotosProcessed;
     NSUInteger numberOfErrors;
+    
+    NSUInteger numberOfVideos;
+    NSUInteger numberOfVideosProcessed;
+    NSUInteger numberOfVideoErrors;
 }
 
 @property (nonatomic, readonly) UILabel *pathLabel;

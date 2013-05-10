@@ -14,10 +14,12 @@
 
 - (void)hideKeyboard;
 - (void)importAction:(id)sender;
+- (void)importVideoAction:(id)sender;
 - (void)importNext;
+- (void)importNextVideo;
 
 @property (nonatomic, retain) NSMutableArray *filePaths;
-
+@property (nonatomic, retain) NSMutableArray *videoFilePaths;
 @end
 
 @implementation AGViewController
@@ -25,6 +27,7 @@
 #pragma mark - Properties
 
 @synthesize filePaths;
+@synthesize videoFilePaths;
 
 - (UILabel *)pathLabel
 {
@@ -76,6 +79,19 @@
     return importButton;
 }
 
+- (UIButton *)importVideoButton
+{
+    if (importVideoButton == nil) {
+        importVideoButton = [[UIButton buttonWithType:UIButtonTypeRoundedRect] retain];
+        importVideoButton.frame = CGRectMake((self.view.frame.size.width - 140.f) / 2, 186.f, 140.f, 37.f);
+        [importVideoButton setTitle:@"Import Video" forState:UIControlStateNormal];
+        
+        [importVideoButton addTarget:self action:@selector(importVideoAction:) forControlEvents:UIControlEventTouchUpInside];
+    }
+    
+    return importVideoButton;
+}
+
 #pragma mark - Oject Lifecycle
 
 - (void)dealloc
@@ -83,7 +99,7 @@
     [pathLabel release];
     [pathTextField release];
     [importButton release];
-    
+    [importVideoButton release];
     [super dealloc];
 }
 
@@ -95,10 +111,15 @@
         [self.view addSubview:self.pathLabel];
         [self.view addSubview:self.pathTextField];
         [self.view addSubview:self.importButton];
+        [self.view addSubview:self.importVideoButton];
         
         numberOfPhotos = 0;
         numberOfPhotosProcessed = 0;
         numberOfErrors = 0;
+        
+        numberOfVideos = 0;
+        numberOfVideosProcessed = 0;
+        numberOfVideoErrors = 0;
     }
     
     return self;
@@ -186,6 +207,7 @@
 {
     NSString *path = [self.pathTextField.text copy];
     self.filePaths = [NSMutableArray array];
+    self.videoFilePaths = [NSMutableArray array];
     for (NSString *filePath in [[NSFileManager defaultManager] enumeratorAtPath:path].allObjects)
     {
         NSString *fileExtension = [[filePath pathExtension] lowercaseString];
@@ -204,12 +226,44 @@
     [self importNext];
 }
 
+- (void)importVideoAction:(id)sender
+{
+    NSString *path = [self.pathTextField.text copy];
+    self.videoFilePaths = [NSMutableArray array];
+    for (NSString *filePath in [[NSFileManager defaultManager] enumeratorAtPath:path].allObjects)
+    {
+        NSString *fileExtension = [[filePath pathExtension] lowercaseString];
+        BOOL isVideo = ([fileExtension isEqualToString:@"mov"] || [fileExtension isEqualToString:@"mp4"]);
+        if (isVideo) {
+            [videoFilePaths addObject:[path stringByAppendingPathComponent:filePath]];
+        }
+    }
+    [path release];
+
+    [self importNext];
+    
+    numberOfVideos = videoFilePaths.count;
+    numberOfVideosProcessed = 0;
+    numberOfVideoErrors = 0;
+    
+    [self importNextVideo];
+}
+
 - (void)importNext
 {
     UIImage *image = [UIImage imageWithContentsOfFile:[self.filePaths lastObject]];
     UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSavingWithError:contextInfo:), nil); 
     
     [self.filePaths removeLastObject];
+}
+
+- (void)importNextVideo
+{
+    if (UIVideoAtPathIsCompatibleWithSavedPhotosAlbum([self.videoFilePaths lastObject])) {
+        UISaveVideoAtPathToSavedPhotosAlbum([self.videoFilePaths lastObject], self, @selector(video:didFinishSavingWithError:contextInfo:), nil);
+    }
+    
+    [self.videoFilePaths removeLastObject];
 }
 
 - (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo
@@ -236,6 +290,31 @@
     // Continue importing
     if (numberOfPhotosProcessed < numberOfPhotos)
         [self importNext];
+}
+
+- (void)video:(NSString *)videoPath didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo {
+    numberOfVideosProcessed++;
+    
+    if (error)
+    {
+        numberOfVideoErrors++;
+        
+        [SVProgressHUD dismissWithError:error.localizedDescription];
+        return;
+    }
+    
+    if (numberOfVideosProcessed == numberOfVideos) {
+        if (numberOfVideoErrors == 0)
+            [SVProgressHUD dismissWithSuccess:@"Success." afterDelay:3];
+        else
+            [SVProgressHUD dismissWithError:[NSString stringWithFormat:@"%d of %d have failed.", numberOfVideoErrors, numberOfVideos] afterDelay:3];
+    }
+    else
+        [SVProgressHUD showWithStatus:[NSString stringWithFormat:@"%d of %d", numberOfVideosProcessed, numberOfVideos]];
+    
+    // Continue importing
+    if (numberOfVideosProcessed < numberOfVideos)
+        [self importNextVideo];
 }
 
 @end
