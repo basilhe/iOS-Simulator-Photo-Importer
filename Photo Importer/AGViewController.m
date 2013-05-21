@@ -9,6 +9,8 @@
 #import "AGViewController.h"
 
 #import "SVProgressHUD.h"
+#import <ImageIO/ImageIO.h>
+#import <AssetsLibrary/AssetsLibrary.h>
 
 @interface AGViewController ()
 
@@ -20,6 +22,7 @@
 
 @property (nonatomic, retain) NSMutableArray *filePaths;
 @property (nonatomic, retain) NSMutableArray *videoFilePaths;
+@property (nonatomic, retain) ALAssetsLibrary *library;
 @end
 
 @implementation AGViewController
@@ -100,6 +103,7 @@
     [pathTextField release];
     [importButton release];
     [importVideoButton release];
+    [self.library release];
     [super dealloc];
 }
 
@@ -120,6 +124,7 @@
         numberOfVideos = 0;
         numberOfVideosProcessed = 0;
         numberOfVideoErrors = 0;
+        _library = [[ALAssetsLibrary alloc] init];
     }
     
     return self;
@@ -251,10 +256,26 @@
 
 - (void)importNext
 {
-    UIImage *image = [UIImage imageWithContentsOfFile:[self.filePaths lastObject]];
-    UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSavingWithError:contextInfo:), nil); 
+//    UIImage *image = [UIImage imageWithContentsOfFile:[self.filePaths lastObject]];
+//    UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSavingWithError:contextInfo:), nil);
+    [self saveImageWithMetadata:[self.filePaths lastObject]];
     
     [self.filePaths removeLastObject];
+}
+
+- (void)saveImageWithMetadata:(NSString *)filePath
+{
+    UIImage *image = [UIImage imageWithContentsOfFile:filePath];
+
+    NSURL *imageFileURL = [NSURL fileURLWithPath:filePath];
+    CGImageSourceRef source = CGImageSourceCreateWithURL((CFURLRef)imageFileURL, NULL);    
+    NSDictionary *metadata = (NSDictionary *) CGImageSourceCopyPropertiesAtIndex(source, 0, NULL);
+    
+    [self.library writeImageToSavedPhotosAlbum:[image CGImage]
+                                 metadata:metadata
+                               completionBlock:^(NSURL *newURL, NSError *error) {
+                                   [self image:image didFinishSavingWithError:error contextInfo:nil];
+                               }];
 }
 
 - (void)importNextVideo
