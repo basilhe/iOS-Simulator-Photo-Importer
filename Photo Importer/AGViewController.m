@@ -244,8 +244,6 @@
         }
     }
     [path release];
-
-    [self importNext];
     
     numberOfVideos = videoFilePaths.count;
     numberOfVideosProcessed = 0;
